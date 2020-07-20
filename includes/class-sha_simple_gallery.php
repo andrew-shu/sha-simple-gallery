@@ -2,7 +2,15 @@
 
 class SHA_Simple_Gallery {
 	 
-	protected $_module_slug = 'sha_sgal';
+  protected $_plugin_name;
+  
+  protected $_plugin_file;
+
+	protected $_plugin_slug;
+
+	protected $_prefix;
+  
+  protected $_init_flag;
 	
   protected $_taxonomy = 'sha-sgal-gals';
 	
@@ -11,20 +19,40 @@ class SHA_Simple_Gallery {
 	protected $_settings = [];
   
 	// Base initing function
-  public function init() {
-
-		$this->init_variables();
+  public function init( $default_settings ) {
+		$this->init_variables( $default_settings );
 
 		// Init hooks only once
-		if ( !defined( 'SHA_SGAL_INITED' ) || ( true !== SHA_SGAL_INITED ) ) {
-			define( 'SHA_SGAL_INITED', true );
+		if ( !defined( $this->_init_flag ) || ( true !== $this->_init_flag ) ) {
+			define( $this->_init_flag, true );
 			$this->init_admin_hooks();
 			$this->init_public_hooks();
 		}
 	}
 
 	// Initing all variables
-	private function init_variables() {
+	private function init_variables( $default_settings ) {
+
+    if ( !isset( $default_settings['plugin_name'] ) || empty( $default_settings['plugin_name'] ) ) {
+      throw new Exception('Plugin name is not defined');
+    } else {
+      $this->_plugin_name = $default_settings['plugin_name'];
+    }
+
+    if ( !isset( $default_settings['plugin_file'] ) || empty( $default_settings['plugin_file'] ) ) {
+      throw new Exception('Plugin file is not defined');
+    } else {
+      $this->_plugin_file = $default_settings['plugin_file'];
+    }
+
+    if ( !isset( $default_settings['plugin_slug'] ) || empty( $default_settings['plugin_slug'] ) ) {
+      throw new Exception('Plugin slug is not defined');
+    } else {
+      $this->_plugin_slug = 'sha-' . $default_settings['plugin_slug'];
+      $this->_prefix = 'sha_' . $default_settings['plugin_slug'] . '_';
+    }
+
+    $this->_init_flag = 'SHA_' . strtoupper( $default_settings['plugin_slug'] ) . '_INITED';
 
 		$default_settings = [
       'default'             => 4,
@@ -79,7 +107,7 @@ class SHA_Simple_Gallery {
 
 	// Register custom post type and taxonomy
 	public function register_cpt() {
-		register_post_type( $this->_module_slug,
+		register_post_type( $this->_plugin_slug,
 			[
 				'labels'              => [
 					'name'					      => __( 'CPT gallery', 'sha-sgal' ),
@@ -112,10 +140,10 @@ class SHA_Simple_Gallery {
 			]
 		);
 		
-		if ( !taxonomy_exists( $this->_module_slug ) ) {
+		if ( !taxonomy_exists( $this->_plugin_slug ) ) {
 			register_taxonomy(
 				$this->_taxonomy,
-				$this->_module_slug,
+				$this->_plugin_slug,
 				[
 					'hierarchical'  			=> true,
           'labels'              => [
@@ -151,15 +179,15 @@ class SHA_Simple_Gallery {
 	// Load textdomain
 	public function load_textdomain() {
 
-		load_plugin_textdomain( 'sha-sgal', false, plugin_dir_path( SHA_SGAL_PLUGIN_FILE ) . 'languages' );
+		load_plugin_textdomain( 'sha-sgal', false, $this->_plugin_name . '/languages' );
 	}
   
   // Change placeholder text
   public function change_placeholder( $title ) {
      $screen = get_current_screen();
   
-     if  ( $this->_module_slug == $screen->post_type ) {
-          $title = 'Type picture name';
+     if  ( $this->_plugin_slug == $screen->post_type ) {
+          $title = __( 'Type picture name', 'sha-sgal' );
      }
   
      return $title;
@@ -167,7 +195,7 @@ class SHA_Simple_Gallery {
 
   // Current screen handler
   public function current_screen( $screen ) {
-    if ( is_object( $screen ) && ( $screen->post_type == $this->_module_slug ) ) {
+    if ( is_object( $screen ) && ( $screen->post_type == $this->_plugin_slug ) ) {
       add_filter( 'gettext', [ $this, 'override_excerpt_text' ], 10, 2 );
     }
   }
@@ -272,7 +300,7 @@ class SHA_Simple_Gallery {
       $gallery_settings = get_option( "cpt_gal_{$gal_id}" );
 			$gallery_data = get_term( $gal_id );
 			$args = [
-				'post_type'		=> $this->_module_slug,
+				'post_type'		=> $this->_plugin_slug,
 				'post_status'	=> 'publish',
         'orderby'     => 'date',
         'order'       => 'DESC',
@@ -313,11 +341,9 @@ class SHA_Simple_Gallery {
         : get_template_directory();
 
       $theme_url = trailingslashit( $theme_url );
-      $plugin_dir_exploded_string = explode( '/', SHA_SGAL_PLUGIN_FILE );
-      $plugin_name = $plugin_dir_exploded_string[ count( $plugin_dir_exploded_string ) - 2 ];
 
-      if ( file_exists( $theme_url . $plugin_name . '/shortcode.phtml' ) ) {
-        $template = $theme_url . $plugin_name . '/shortcode.phtml';
+      if ( file_exists( $theme_url . $this->_plugin_name . '/shortcode.phtml' ) ) {
+        $template = $theme_url . $this->_plugin_name . '/shortcode.phtml';
         $global = 1;
       } else {
         $template = 'public/templates/elements/shortcode.phtml';
@@ -344,7 +370,7 @@ class SHA_Simple_Gallery {
 
     wp_enqueue_style(
       'fancybox',
-      plugin_dir_url( SHA_SGAL_PLUGIN_FILE ) . 'public/css/fancybox/jquery.fancybox.css',
+      plugin_dir_url( $this->_plugin_file ) . 'public/css/fancybox/jquery.fancybox.css',
       [],
       $timestamp,
       'all'
@@ -352,8 +378,8 @@ class SHA_Simple_Gallery {
     
     if ( $this->_settings['load_css'] ) {
       wp_enqueue_style(
-        $this->_module_slug,
-        plugin_dir_url( SHA_SGAL_PLUGIN_FILE ) . 'public/css/styles.css',
+        $this->_plugin_slug,
+        plugin_dir_url( $this->_plugin_file ) . 'public/css/styles.css',
         [],
         $timestamp,
         'all'
@@ -362,7 +388,7 @@ class SHA_Simple_Gallery {
 
     wp_enqueue_script(
       'fancybox',
-      plugin_dir_url( SHA_SGAL_PLUGIN_FILE ) . 'public/js/fancybox/jquery.fancybox.pack.js',
+      plugin_dir_url( $this->_plugin_file ) . 'public/js/fancybox/jquery.fancybox.pack.js',
       [ 'jquery' ],
       $timestamp,
       false
@@ -370,8 +396,8 @@ class SHA_Simple_Gallery {
 
     if ( $this->_settings['load_js'] ) {
       wp_enqueue_script(
-        $this->_module_slug,
-        plugin_dir_url( SHA_SGAL_PLUGIN_FILE ) . 'public/js/scripts.js',
+        $this->_plugin_slug,
+        plugin_dir_url( $this->_plugin_file ) . 'public/js/scripts.js',
         [ 'jquery' ],
         $timestamp,
         false
@@ -388,7 +414,7 @@ class SHA_Simple_Gallery {
       $type = $_GET['post_type'];
     }
 
-    if ( $this->_module_slug == $type ) {
+    if ( $this->_plugin_slug == $type ) {
       $terms = get_terms( $this->_taxonomy );
       echo $this->get_module_template(
         'admin/templates/elements/gallery_filter_dropdown.phtml',
@@ -419,7 +445,7 @@ class SHA_Simple_Gallery {
             
       $qv = &$query->query_vars;
 
-      if ( is_admin() && ( $this->_module_slug == $type ) && ( $pagenow == 'edit.php' ) && !empty( $_GET['gal_id'] ) ) {
+      if ( is_admin() && ( $this->_plugin_slug == $type ) && ( $pagenow == 'edit.php' ) && !empty( $_GET['gal_id'] ) ) {
           $term = get_term_by('id', $_GET['gal_id'], $this->_taxonomy );
           $qv[ $this->_taxonomy ] = $term->slug;
       }
@@ -427,18 +453,18 @@ class SHA_Simple_Gallery {
 
  	// Get template and output it's html
 	private function get_module_template( $template, $args = [], $global_template = 0 ) {
-		
+
     if ( $global_template == 1 ) {
       $template_file = $template;
     } else {
       $template_file = sprintf(
         '%s%s',
-        plugin_dir_path( SHA_SGAL_PLUGIN_FILE ),
+        plugin_dir_path( $this->_plugin_file ),
         $template
       );
     }
 
-		$args['module_slug'] = $this->_module_slug;
+		$args['module_slug'] = $this->_plugin_slug;
 		extract( $args );
 
 		ob_start();

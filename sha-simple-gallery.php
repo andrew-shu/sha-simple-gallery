@@ -12,12 +12,15 @@ if ( !defined( 'ABSPATH' ) )  {
   exit;
 }
 
-if ( !defined( 'SHA_SGAL_PLUGIN_FILE' ) ) {
-	define( 'SHA_SGAL_PLUGIN_FILE', __FILE__ );
-}
-
 if ( !class_exists( 'SHA_Simple_Gallery', false ) ) {
-	include_once dirname( SHA_SGAL_PLUGIN_FILE ) . '/includes/class-sha_simple_gallery.php';
+
+  $settings = [
+    'plugin_name' => basename( dirname( __FILE__ , 1 ) ),
+    'plugin_file' => __FILE__,
+    'plugin_slug' => 'sgal',
+  ];
+
+	include_once dirname( __FILE__ ) . '/includes/class-sha_simple_gallery.php';
 	$sha_bwcu_class = new SHA_Simple_Gallery();
-	$sha_bwcu_class->init();
+	$sha_bwcu_class->init( $settings );
 }
